@@ -1,6 +1,7 @@
 // Components
 import { VBtn } from '../VBtn'
 import { VBtnToggle } from '@/components/VBtnToggle'
+import { VTab, VTabs } from '@/components/VTabs'
 
 // Utilities
 import { gridOn, render, screen, showcase, userEvent } from '@test'
@@ -52,6 +53,17 @@ const stories = {
     <VBtn spaced={ spaced } prependIcon="$prev" appendIcon="$next" width="200">{ spaced }</VBtn>
   ),
   'Block + spaced': <VBtn block spaced="both" prependIcon="$prev" appendIcon="$next">Spaced</VBtn>,
+}
+
+function createTestRouter () {
+  return createRouter({
+    history: createWebHistory(),
+    routes: [
+      { path: '/', component: { template: 'Home' } },
+      { path: '/about', component: { template: 'About' } },
+      { path: '/__vitest_test__/:path(.*)', component: { template: 'Test' } },
+    ],
+  })
 }
 
 // Actual tests
@@ -157,6 +169,64 @@ describe('VBtn', () => {
       expect(link).toHaveFocus()
       await result.findByText('Click me')
       expect(window.location.pathname).toBe('/about')
+    })
+
+    it('does not toggle a group when router navigation is cancelled', async () => {
+      const router = createTestRouter()
+      await router.replace('/')
+
+      let decide: (value: boolean) => void = () => {}
+      const removeGuard = router.beforeEach(() => new Promise(resolve => {
+        decide = resolve
+      }))
+      const model = ref('one')
+
+      render(() => (
+        <VTabs v-model={ model.value }>
+          <VTab to="/" value="one">One</VTab>
+          <VTab to="/about" value="two">Two</VTab>
+        </VTabs>
+      ), { global: { plugins: [router] } })
+
+      await expect.poll(() => model.value).toBe('one')
+      expect(screen.getByText('One').closest('.v-tab')).toHaveClass('v-tab--selected')
+
+      await userEvent.click(screen.getByText('Two'))
+
+      expect(router.currentRoute.value.path).toBe('/')
+      expect(model.value).toBe('one')
+      expect(screen.getByText('Two').closest('.v-tab')).not.toHaveClass('v-tab--selected')
+
+      decide(false)
+
+      await expect.poll(() => router.currentRoute.value.path).toBe('/')
+      expect(model.value).toBe('one')
+      expect(screen.getByText('One').closest('.v-tab')).toHaveClass('v-tab--selected')
+      expect(screen.getByText('Two').closest('.v-tab')).not.toHaveClass('v-tab--selected')
+
+      removeGuard()
+    })
+
+    it('toggles a group when router navigation succeeds', async () => {
+      const router = createTestRouter()
+      await router.replace('/')
+      const model = ref('one')
+
+      render(() => (
+        <VTabs v-model={ model.value }>
+          <VTab to="/" value="one">One</VTab>
+          <VTab to="/about" value="two">Two</VTab>
+        </VTabs>
+      ), { global: { plugins: [router] } })
+
+      await expect.poll(() => model.value).toBe('one')
+
+      await userEvent.click(screen.getByText('Two'))
+
+      await expect.poll(() => router.currentRoute.value.path).toBe('/about')
+      await expect.poll(() => model.value).toBe('two')
+      expect(screen.getByText('Two').closest('.v-tab')).toHaveClass('v-tab--selected')
+      expect(screen.getByText('One').closest('.v-tab')).not.toHaveClass('v-tab--selected')
     })
   })
 

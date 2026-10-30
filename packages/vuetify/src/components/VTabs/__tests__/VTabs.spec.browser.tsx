@@ -79,12 +79,13 @@ describe('VTabs', () => {
 
     await userEvent.click(screen.getAllByCSS('.v-tab')[1])
 
-    expect(router.currentRoute.value.path).toBe('/about')
+    await expect.poll(() => router.currentRoute.value.path).toBe('/about')
+    await expect.poll(() => screen.getAllByCSS('.v-tab')[1].className).toContain('v-tab--selected')
 
     await router.push('/')
 
-    expect(screen.getAllByCSS('.v-tab')[0]).not.toHaveClass('v-tab--selected')
-    expect(screen.getAllByCSS('.v-tab')[1]).toHaveClass('v-tab--selected')
+    await expect.poll(() => screen.getAllByCSS('.v-tab')[0].className).toContain('v-tab--selected')
+    expect(screen.getAllByCSS('.v-tab')[1]).not.toHaveClass('v-tab--selected')
   })
 
   // https://github.com/vuetifyjs/vuetify/issues/15237
